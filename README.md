@@ -3,7 +3,7 @@
 
 ## Apprentissage de représentation multimodale guidé par la géométrie et la topologie
 
-![Architecture TopoFusion-TR](docs/architecture.png)
+![Architecture TopoFusion-TR](docs/archi.png)
 
 > **Question scientifique.** Comment apprendre un espace latent dans lequel deux modalités différentes représentent la même information sémantique, tout en préservant leur structure intrinsèque et en étant robuste au bruit et aux transformations ?
 
