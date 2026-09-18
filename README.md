@@ -17,7 +17,20 @@ Cette version constitue une implémentation de recherche de TopoFusion-TR autour
 4. attention relationnelle biaisée par la structure topologique ;
 5. supervision conjointe sémantique, géométrique, topologique et robuste.
 
-Le dataset principal demandé est `AhmedSSabir/Textual-Image-Caption-Dataset`, chargé avec `datasets.load_dataset`.
+Le dataset principal demandé est `HuggingFaceM4/DocumentVQA`, chargé avec `datasets.load_dataset`.
+
+### Stratégie d'Alignement Initial (Initialisation de la Semantic Latent Bank)
+
+Avant de calculer la topologie, nous devons construire un espace sémantique cohérent. La stratégie est la suivante :
+
+* **Encodeurs Spécialisés :** Chaque modalité est encodée indépendamment pour préserver sa structure intrinsèque.
+* **Projection Commune :** Les tokens sont projetés dans une dimension $d$ commune.
+* **Semantic Latent Bank (Initialisation) :** Nous initialisons $K$ tokens latents apprenables via une initialisation orthogonale (Xavier). Nous ne les initialisons pas avec des embeddings d'une modalité spécifique pour éviter tout biais modal.
+* **Cross-Attention Latente :** La banque interroge les modalités via une cross-attention. Les tokens latents agissent comme des "requêtes" universelles.
+* **Factorisation Shared/Private :** Après l'attention, les tokens sont séparés en une partie commune ($S_c$) et une partie privée ($S_p^m$) spécifique à chaque modalité.
+* **Fusion Adaptative Relationnelle :** Au lieu d'une moyenne naïve, nous utilisons un mécanisme de confiance appris ($\alpha_{m,k}$) pour fusionner les parties communes.
+
+La topologie (Homologie Persistante) n'intervient qu'après ces étapes, pour contraindre et structurer cet espace déjà amorcé.
 
 ## 2. Point méthodologique essentiel
 
