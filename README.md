@@ -1,0 +1,287 @@
+
+# TopoFusion-TR Hyper
+
+## Apprentissage de représentation multimodale guidé par la géométrie et la topologie
+
+![Architecture TopoFusion-TR](docs/archi.png)
+
+> **Question scientifique.** Comment apprendre un espace latent dans lequel deux modalités différentes représentent la même information sémantique, tout en préservant leur structure intrinsèque et en étant robuste au bruit et aux transformations ?
+
+## 1. Objectif
+
+Cette version constitue une implémentation de recherche de TopoFusion-TR autour de cinq idées :
+
+1. encodeurs spécialisés par modalité ;
+2. banque de latents sémantiques avec séparation partagé/privé ;
+3. graphe latent adaptatif et filtration apprise ;
+4. attention relationnelle biaisée par la structure topologique ;
+5. supervision conjointe sémantique, géométrique, topologique et robuste.
+
+Le dataset principal demandé est `HuggingFaceM4/DocumentVQA`, chargé avec `datasets.load_dataset`.
+
+### Stratégie d'Alignement Initial (Initialisation de la Semantic Latent Bank)
+
+Avant de calculer la topologie, nous devons construire un espace sémantique cohérent. La stratégie est la suivante :
+
+* **Encodeurs Spécialisés :** Chaque modalité est encodée indépendamment pour préserver sa structure intrinsèque.
+* **Projection Commune :** Les tokens sont projetés dans une dimension $d$ commune.
+* **Semantic Latent Bank (Initialisation) :** Nous initialisons $K$ tokens latents apprenables via une initialisation orthogonale (Xavier). Nous ne les initialisons pas avec des embeddings d'une modalité spécifique pour éviter tout biais modal.
+* **Cross-Attention Latente :** La banque interroge les modalités via une cross-attention. Les tokens latents agissent comme des "requêtes" universelles.
+* **Factorisation Shared/Private :** Après l'attention, les tokens sont séparés en une partie commune ($S_c$) et une partie privée ($S_p^m$) spécifique à chaque modalité.
+* **Fusion Adaptative Relationnelle :** Au lieu d'une moyenne naïve, nous utilisons un mécanisme de confiance appris ($\alpha_{m,k}$) pour fusionner les parties communes.
+
+La topologie (Homologie Persistante) n'intervient qu'après ces étapes, pour contraindre et structurer cet espace déjà amorcé.
+
+## 2. Point méthodologique essentiel
+
+Le dataset fourni est **bimodal image + texte**. L'architecture prévoit néanmoins des interfaces audio et vidéo afin que le modèle puisse être étendu sans modifier le cœur du mécanisme. Le pipeline actuel n'invente donc pas de faux audio/vidéo.
+
+La persistent homology exacte est utilisée comme **diagnostic scientifique post-entraînement**. L'optimisation utilise une signature topologique différentiable fondée sur des graphes multi-échelles et leurs opérateurs spectraux. Cette séparation évite de confondre un calcul PH exact non nécessairement différentiable avec une fonction de perte entraînable.
+
+---
+
+## Modules Clés & Justifications Mathématiques
+
+1. **Encodeurs Spécialisés & Projecteurs $P_m$ (Bloc 1)** :
+   - Encodeurs dédiés respectant la nature de chaque flux (Vision Transformer, Transformer linguistique, AST spectrogramme, Spatio-Temporal Transformer).
+   - Projecteurs $P_m$ multilinéaires avec LayerNorm alignant les représentations sur une dimension commune $d=256$.
+
+2. **Semantic Latent Bank & Factorisation Shared/Private (Bloc 2)** :
+   - $K$ tokens latents apprenables orthogonaux $S \in \mathbb{R}^{K \times d}$ servant de requêtes universelles via Cross-Attention.
+   - Séparation stricte $K = K_c + K_p$ entre information invariante cross-modale ($S_c$) et traits sensoriels spécifiques ($S_p$), avec pénalité d'orthogonalité pour découplage d'information.
+   - Fusion adaptative convexe par réseau de confiance $\alpha_m \in \mathbb{R}^{B \times K_c \times 1}$.
+
+3. **Graphe Latent Adaptatif (Bloc 3)** :
+   - Construction d'arêtes apprenables combinant :
+     * Similarité cosinus/bilinéaire $\text{Sim}_{ij}$
+     * Relations non-linéaires $\text{Rel}_{ij}$
+     * Incertitude bayésienne $\sigma_{ij}^2$ modulant les arêtes : $W_{ij} = \sigma\left( \frac{\text{Sim}_{ij} + \text{Rel}_{ij}}{\sigma_{ij}} \right)$.
+
+4. **Filtration Adaptative (Bloc 4)** :
+   - Fonction de filtration continue $f_\theta: \mathbb{R}^d \to \mathbb{R}^+$.
+   - Contrainte $f_\theta \ge 0$ garantie via Softplus.
+   - Propriété $1$-Lipschitz garantie par **normalisation spectrale** (`spectral_norm`) sur les poids, assurant la stabilité topologique au sens du Théorème de Stabilité de Cohen-Steiner, Edelsbrunner et Harer.
+   - Seuillage multi-échelle ordonné $(\varepsilon_1 < \varepsilon_2 < \dots < \varepsilon_M)$.
+
+5. **Homologie Persistante $H_0$ et $H_1$ (Bloc 5)** :
+   - Calcul des paires de persistance $(\text{birth}, \text{death})$ des composantes 0D ($H_0$) et des 1-cycles / boucles 1D ($H_1$) via un complexe simplicial lower-star Gudhi.
+
+6. **Encodage Topologique Différentiable (Bloc 6)** :
+   - Transformation des diagrammes en **Persistence Landscapes** $\lambda_k(t)$ (Bubenik, 2015) :
+     $$\Lambda_{(b, d)}(t) = \max(0, \min(t - b, d - t))$$
+   - Projection des paysages en tokens discrets $T_{H_0} \in \mathbb{R}^{B \times K_{H0} \times d}$ et $T_{H_1} \in \mathbb{R}^{B \times K_{H1} \times d}$.
+   - Pont de gradient différentiable couplant les valeurs nodales de filtration à l'espace latent.
+
+7. **Attention Topologique (Bloc 7 / Espace Structurel)** :
+   - Mécanisme d'attention biaisé par la topologie :
+     $$A_{ij} = \text{softmax}\left(\frac{q_i k_j^\top}{\sqrt{d}} + \lambda T_{ij}\right)$$
+   - Bloc Transformer complet (Pre-LN, résidus, FFN GELU, paramètre $\lambda$ multi-tête apprenable).
+
+8. **Branches de Supervision Multi-Pertes (Bloc 8 & 9)** :
+   - $\mathcal{L}_{sem}$ : InfoNCE contrastive symétrique avec température apprenable.
+   - $\mathcal{L}_{geom}$ : Préservation isométrique des matrices de distance locales (tokens) et globales (batch).
+   - $\mathcal{L}_{top}$ : Distance différentiable sur les Persistence Landscapes ($L_2$ Wasserstein surrogate).
+   - $\mathcal{L}_{temp}$ : Continuité (dérivée seconde), ordre temporel contrastif ($d(z_t, z_{t+1}) < d(z_t, z_{t+2})$) et préservation dynamique.
+   - $\mathcal{L}_{robust}$ : Invariance aux perturbations (bruit gaussien, masquage de tokens, décrochage modal) et cohérence structurelle d'adjacence.
+
+---
+
+
+## 3. Arborescence
+
+```text
+TopoFusion_TR_Hyper/
+├── docs/
+│   └── architecture.png             # Architecture fournie par le Ange Landry NOUMBISSI.
+├── config.yaml                   # Configuration globale (données, modèle, entraînement)
+├── main.py                       # Point d'entrée exécutable (CLI, démo, entraînement)
+├── requirements.txt              # Dépendances Python
+│
+├── data/
+│   └── dataset_loader.py         # Chargement optimisé DocumentVQA (sharding, fallback)
+│
+├── models/
+│   ├── __init__.py               # Exports propres
+│   ├── encoders.py               # Encodeurs spécialisés ViT, BERT, AST, VideoMAE & Projecteurs P_m
+│   ├── latent_bank.py            # SemanticLatentBank, SharedPrivateFactorization, AdaptiveFusion
+│   ├── topology.py               # AdaptiveLatentGraph, LearnedFiltration, PersistentHomology, TopologicalEncoder
+│   ├── attention.py              # TopologicalAttention, TopologicalTransformerBlock
+│   ├── robustness.py             # RobustnessPerturbationModule
+│   └── multimodal_framework.py   # Architecture unifiée TopoMultimodalFramework
+│
+├── losses/
+│   └── losses.py                 # L_sem, L_geom, L_top, L_temp, L_robust, CompositeMultimodalLoss
+│
+├── training/
+│   └── trainer.py                # Boucle d'entraînement modulaire en 3 phases, métriques, gradient clipping
+│
+├── utils/
+│   ├── metrics.py                # Recall@K, mAP, Isométrie topologique
+│   └── visualization.py          # Visualisations headless (ACP, persistance, attention, courbes)
+│
+└── tests/
+    ├── test_architecture_tda.py  # Suite de tests complète (10 tests unitaires & intégration)
+    └── test_trainer_numeric_config.py # Test de rétrocompatibilité Trainer
+```
+
+## 4. Installation
+
+```bash
+python -m venv .venv
+# Windows PowerShell
+.\.venv\Scripts\Activate.ps1
+# Linux/macOS
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+## 5. Vérification immédiate sans télécharger le dataset
+
+```bash
+python -m pytest -q
+```
+ou 
+```bash
+PYTHONPATH=. pytest -v
+```
+
+## 6. Visualiser le dataset réel au début
+
+```bash
+python scripts/visualiser_dataset.py --max-samples 32
+```
+
+La figure est écrite dans `outputs/dataset/exemples_bruts.png` et les informations du split dans `outputs/dataset/repartition.json`.
+
+## 7. Entraînement
+
+Petit protocole de développement :
+
+```bash
+python scripts/entrainer.py --max-samples 512 --epochs 5
+```
+
+Protocole plus sérieux :
+
+```bash
+python scripts/entrainer.py --max-samples 5000 --epochs 30
+```
+
+### Lancer une démonstration rapide (3 phases, génération de graphiques)
+```bash
+python3 main.py --quick_demo --output_dir outputs
+```
+
+### Lancer un entraînement complet
+```bash
+python3 main.py --config config.yaml --output_dir outputs
+```
+
+L'entraînement crée automatiquement :
+
+- `outputs/latent/avant_apres.png` ;
+- `outputs/training/courbes_pertes.png` ;
+- `outputs/training/courbes_validation.png` ;
+- `outputs/validation/metriques_validation.json` ;
+- `outputs/test/metriques_test.json` ;
+- `outputs/test/metriques_test.png` ;
+- `outputs/topology/diagrammes_persistance.png` si GUDHI est installé ;
+- `outputs/rapport_final/resultats.json`.
+
+## 8. Protocole expérimental
+
+```text
+                  DATASET HF
+                      │
+             ┌────────┼────────┐
+             ↓        ↓        ↓
+           TRAIN      VAL      TEST
+             │         │        │
+             │         └── sélection du checkpoint
+             ↓
+      TopoFusion-TR / baseline
+             │
+             ↓
+     représentation commune
+             │
+       ┌─────┼──────┐
+       ↓     ↓      ↓
+    sémantique géométrie topologie
+       │     │      │
+       └─────┼──────┘
+             ↓
+          robustesse
+             │
+             ↓
+     évaluation finale TEST
+             │
+       ┌─────┼──────────────┐
+       ↓     ↓              ↓
+ retrieval geometry     topology exact
+```
+
+Le test n'est pas utilisé à chaque époque : il reste réservé à l'évaluation finale afin de limiter le risque de fuite expérimentale.
+
+## 9. Baselines
+
+- **B0** : encodeurs + projection + moyenne + classifieur/retrieval sans contrainte d'alignement ;
+- **B1** : B0 + alignement contrastif global ;
+- **B2** : B1 + alignement géométrique des matrices de distances ;
+- **B3** : B2 + topologie différentiable multi-échelle ;
+- **TopoFusion-TR** : B3 + banque shared/private + filtration adaptative + attention topologique + robustesse.
+
+Les baselines B0-B3 disposent d'un constructeur et d'un script d'entraînement séparé (`scripts/entrainer_baseline.py`). B0 est volontairement dépourvue d'alignement, B1 utilise l'objectif contrastif, B2 ajoute la géométrie et B3 ajoute le proxy topologique multi-échelle. L'objectif scientifique est de mesurer séparément l'apport de chaque mécanisme, et non de déclarer une nouveauté sur la seule base du diagramme architectural.
+
+## 10. Métriques
+
+### Sémantique / retrieval
+
+- Recall@1, Recall@5, Recall@10 image→texte ;
+- Recall@1, Recall@5, Recall@10 texte→image ;
+- mAP image→texte ;
+- mAP texte→image.
+
+### Géométrie / structure
+
+- erreur relative des matrices de distances ;
+- préservation des voisinages @5 et @10 ;
+- trustworthiness.
+
+### Robustesse
+
+- similarité cosinus clean/corrompu ;
+- Recall@1 clean/corrompu ;
+- dégradation relative du Recall@1.
+
+### Topologie
+
+- nombre de classes finies H0/H1 ;
+- persistance totale H0/H1 ;
+- persistance maximale H0/H1 ;
+- distance de Wasserstein H0/H1 ;
+- distance de bottleneck H0/H1 ;
+- diagrammes de persistance.
+
+## 11. Limites honnêtes
+
+La démonstration initiale utilise uniquement les deux modalités effectivement présentes dans le dataset fourni. Pour une publication, les conclusions sur l'extension audio/vidéo devront être établies sur un véritable dataset multimodal contenant ces modalités. De même, une amélioration des métriques ne constitue pas à elle seule une preuve de nouveauté : il faudra comparer plusieurs baselines, plusieurs seeds, des corruptions contrôlées et idéalement plusieurs datasets.
+
+## 12. Lancer les ablations
+
+```bash
+python scripts/entrainer_baseline.py --baseline B0 --max-samples 512 --epochs 5
+python scripts/entrainer_baseline.py --baseline B1 --max-samples 512 --epochs 5
+python scripts/entrainer_baseline.py --baseline B2 --max-samples 512 --epochs 5
+python scripts/entrainer_baseline.py --baseline B3 --max-samples 512 --epochs 5
+```
+
+## Visualisations Générées
+
+Les graphiques sont sauvegardés automatiquement dans le dossier `outputs/` :
+- `outputs/dataset_samples.png` : Échantillons multimodaux du dataset DocumentVQA
+- `outputs/training_curves.png` : Courbes des pertes composites et métriques (Recall@1, Recall@5, mAP)
+- `outputs/latent_space.png` : Analyse en composantes principales (ACP) des espaces Partagé ($S_c$) vs Privé ($S_p$)
+- `outputs/persistence_diagram.png` : Diagramme de persistance $H_0$ et $H_1$ (Birth vs Death)
+- `outputs/topological_attention.png` : Carte thermique de la matrice d'attention topologique $A_{ij}$
+
+B0-B3 sont volontairement séparées du protocole principal afin de ne pas mélanger sélection de checkpoint et comparaison des contributions.
