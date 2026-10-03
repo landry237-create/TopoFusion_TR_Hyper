@@ -1,0 +1,43 @@
+
+
+#=====================================================================================
+
+
+# Configuration globale du projet
+project_name: "Topo-Multimodal"
+
+# Paramètres du dataset
+dataset:
+  name: "HuggingFaceM4/DocumentVQA"
+  split: "train"
+  max_samples: 10000 # Limité pour la démonstration
+  batch_size: 128
+
+# Paramètres des modèles
+models:
+  latent_dim: 768 # Augmenté pour correspondre à la sortie native de ViT et BERT (évite la destruction d'informations)
+  num_latent_tokens: 32
+  num_shared_tokens: 16
+  num_private_tokens: 16
+  num_h0_tokens: 4
+  num_h1_tokens: 4
+  encoder_image: "google/vit-base-patch16-224"
+  encoder_text: "bert-base-uncased"
+  encoder_audio: "MIT/ast-finetuned-audioset-10-10-0.4593"
+  encoder_video: "MCG-NJU/videomae-base"
+
+# Paramètres d'entraînement
+training:
+  epochs_phase1: 35
+  epochs_phase2: 50
+  epochs_phase3: 45
+  lr: 1e-4
+  weight_decay: 1e-2 # Augmenté pour une meilleure régularisation avec AdamW
+  #gradient_accumulation_steps: 8 # Ajouté pour simuler un batch de 64 (8x8), crucial pour l'apprentissage contrastif
+  scheduler: "cosine_with_warmup" # Ajouté pour stabiliser et affiner la convergence
+  warmup_ratio: 0.1 # 10% des étapes d'entraînement allouées au warmup
+  lambda_sem: 1.0
+  lambda_geom: 0.5
+  lambda_top: 0.1
+  lambda_rob: 0.1
+  lambda_temp: 0.1
