@@ -267,10 +267,25 @@ La démonstration initiale utilise uniquement les deux modalités effectivement 
 ## Visualisations Générées
 
 Les graphiques sont sauvegardés automatiquement dans le dossier `outputs/` :
+
+![Architecture TopoFusion-TR](outputs/dataset_samples.png)
+
 - `outputs/dataset_samples.png` : Échantillons multimodaux du dataset DocumentVQA
+
+![Architecture TopoFusion-TR](outputs/training_curves.png)
+
 - `outputs/training_curves.png` : Courbes des pertes composites et métriques (Recall@1, Recall@5, mAP)
+
+  ![Architecture TopoFusion-TR](outputs/latent_space.png)
+  
 - `outputs/latent_space.png` : Analyse en composantes principales (ACP) des espaces Partagé ($S_c$) vs Privé ($S_p$)
+
+![Architecture TopoFusion-TR](outputs/persistence_diagram.png)
+
 - `outputs/persistence_diagram.png` : Diagramme de persistance $H_0$ et $H_1$ (Birth vs Death)
+
+![Architecture TopoFusion-TR](outputs/topological_attention.png)
+
 - `outputs/topological_attention.png` : Carte thermique de la matrice d'attention topologique $A_{ij}$
 
 B0-B3 sont volontairement séparées du protocole principal afin de ne pas mélanger sélection de checkpoint et comparaison des contributions.
