@@ -1,0 +1,29 @@
+{
+ "variante": "B3",
+ "reglage": "top0.5",
+ "remplacements": {
+  "loss_weights": {
+   "top": 0.5
+  }
+ },
+ "graine": 42,
+ "duree_s": 1717.4542367458344,
+ "meilleure_epoque": 18,
+ "val": {
+  "i2t_recall_at_1": 0.345,
+  "i2t_recall_at_5": 0.673,
+  "i2t_recall_at_10": 0.8,
+  "i2t_map": 0.2980803308312413,
+  "i2t_median_rank": 3.0,
+  "t2i_recall_at_1": 0.25240384615384615,
+  "t2i_recall_at_5": 0.6137820512820513,
+  "t2i_recall_at_10": 0.7766426282051282,
+  "t2i_map": 0.41599050055374676,
+  "t2i_median_rank": 4.0,
+  "mean_recall_at_1": 0.29870192307692306,
+  "mean_recall_at_5": 0.6433910256410257,
+  "mean_recall_at_10": 0.7883213141025641,
+  "mean_map": 0.35703541569249403
+ },
+ "premiere_epoque_val": 0.006004807692307693
+}

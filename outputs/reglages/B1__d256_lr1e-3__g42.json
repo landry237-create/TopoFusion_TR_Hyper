@@ -1,0 +1,29 @@
+{
+ "variante": "B1",
+ "reglage": "d256_lr1e-3",
+ "remplacements": {
+  "training": {
+   "lr": 0.001
+  }
+ },
+ "graine": 42,
+ "duree_s": 251.92258095741272,
+ "meilleure_epoque": 18,
+ "val": {
+  "i2t_recall_at_1": 0.37,
+  "i2t_recall_at_5": 0.725,
+  "i2t_recall_at_10": 0.837,
+  "i2t_map": 0.33959546957586567,
+  "i2t_median_rank": 2.0,
+  "t2i_recall_at_1": 0.30088141025641024,
+  "t2i_recall_at_5": 0.657051282051282,
+  "t2i_recall_at_10": 0.8110977564102564,
+  "t2i_map": 0.4599984327383153,
+  "t2i_median_rank": 3.0,
+  "mean_recall_at_1": 0.3354407051282051,
+  "mean_recall_at_5": 0.691025641025641,
+  "mean_recall_at_10": 0.8240488782051282,
+  "mean_map": 0.39979695115709046
+ },
+ "premiere_epoque_val": 0.005904647435897436
+}

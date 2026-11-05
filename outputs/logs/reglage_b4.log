@@ -1,0 +1,8 @@
+Manifeste réutilisé : data_cache/manifest_1a075c9f15.json ({'train': {'images': 8000, 'legendes': 24000}, 'val': {'images': 1000, 'legendes': 4992}, 'test': {'images': 1000, 'legendes': 4992}})
+[B4 | graine 42] Device réel : cpu
+[B4 | graine 42] époque 1/20 phase 1 perte=4.4828 val_perte=2.9828 val_R@1=0.0676 val_R@5=0.2372 (140 s)
+[B4 | graine 42] époque 2/20 phase 1 perte=2.5004 val_perte=2.1644 val_R@1=0.1646 val_R@5=0.4482 (86 s)
+[B4 | graine 42] époque 3/20 phase 1 perte=1.9513 val_perte=1.8616 val_R@1=0.2221 val_R@5=0.5230 (129 s)
+[B4 | graine 42] époque 4/20 phase 1 perte=1.6955 val_perte=1.7070 val_R@1=0.2364 val_R@5=0.5554 (172 s)
+[B4 | graine 42] époque 5/20 phase 2 perte=1.5672 val_perte=1.6775 val_R@1=0.2712 val_R@5=0.5897 (192 s)
+[B4 | graine 42] époque 6/20 phase 2 perte=1.4284 val_perte=1.5951 val_R@1=0.2797 val_R@5=0.6141 (216 s)

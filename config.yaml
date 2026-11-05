@@ -1,0 +1,138 @@
+# Configuration de reference de TopoFusion-TR Hyper.
+# Toute cle inconnue ou incoherente est rejetee par utils/config.py.
+
+project_name: "TopoFusion-TR-Hyper"
+seed: 42
+
+# Jeu de donnees reel. Le CSV Hugging Face fournit les legendes, et les images sont
+# resolues depuis COCO train2014 a partir des noms de fichiers presents dans ce CSV.
+dataset:
+  hf_repo: "AhmedSSabir/Textual-Image-Caption-Dataset"
+  hf_split: "train"
+  fallback_data_file: "All_Caption_ID.csv"
+  try_strict_call: true
+  image_url_template: "http://images.cocodataset.org/train2014/{file}"
+  coco_root: null
+  cache_dir: "data_cache"
+  num_train_images: 8000
+  num_val_images: 1000
+  num_test_images: 1000
+  reserve_ratio: 0.02
+  train_captions_per_image: 3
+  eval_captions_per_image: 5
+  split_seed: 20260101
+  split_fractions: [0.8, 0.1, 0.1]
+  max_caption_words: 64
+  image_cache_size: 256
+  download_workers: 16
+
+# Seules les modalites reelles du benchmark sont actives.
+# Audio et video restent des extensions experimentales.
+modalities:
+  image: true
+  text: true
+  audio: false
+  video: false
+
+# Encodeurs geles. Les caracteristiques sont extraites une fois puis mises en cache.
+encoders:
+  image: "facebook/dinov2-small"
+  text: "bert-base-uncased"
+  image_grid: 4
+  max_text_tokens: 24
+  batch_size: 32
+  audio_experimental: "MIT/ast-finetuned-audioset-10-10-0.4593"
+  video_experimental: "MCG-NJU/videomae-base"
+
+# Reference CLIP pre-entrainee. Ces poids sont disponibles au format safetensors.
+clip_baseline:
+  enabled: true
+  model: "laion/CLIP-ViT-B-32-laion2B-s34B-b79K"
+
+# Architecture commune. La variante est choisie dans experiments.variants.
+model:
+  latent_dim: 256
+  num_latent_tokens: 24
+  num_shared_tokens: 12
+  num_h0_tokens: 2
+  num_h1_tokens: 2
+  num_heads: 4
+  graph_hidden_dim: 32
+  dropout: 0.1
+  initial_temperature: 0.07
+  initial_structural_gate: 0.25
+
+# Parametres du moteur topologique.
+topology:
+  filtration_dim: 64
+  num_scales: 4
+  landscape_layers: 3
+  landscape_steps: 16
+  soft_betti_temperature: 0.05
+  loss_points: 64
+  loss_homology_dims: [0, 1]
+
+# Entrainement.
+training:
+  epochs: 20
+  batch_size: 128
+  lr: 3.0e-4
+  weight_decay: 1.0e-2
+  warmup_ratio: 0.1
+  min_lr_ratio: 0.01
+  max_grad_norm: 1.0
+  early_stopping_patience: 6
+  early_stopping_metric: "val_mean_recall_at_5"
+  phase_fractions: [0.2, 0.3, 0.5]
+  feature_noise_std: 0.05
+  feature_mask_prob: 0.15
+  modality_dropout_prob: 0.1
+  max_bad_steps: 5
+
+# Poids de l'objectif composite. La presence d'un terme depend de la variante.
+loss_weights:
+  sem: 1.0
+  fusion: 0.25
+  geom: 0.2
+  top: 0.1
+  rob: 0.1
+  orth: 0.05
+  rec: 0.05
+  var: 0.05
+
+# Protocole d'evaluation.
+evaluation:
+  recall_ks: [1, 5, 10]
+  batch_size: 256
+  bootstrap_samples: 1000
+  topology_points: 256
+  token_stability_samples: 64
+  corruption_seed: 7
+
+# Plan experimental.
+experiments:
+  seeds: [42, 43, 44]
+  variants: ["B0", "B1", "B2", "B3", "B4"]
+  ablations: ["B4_sans_L_top", "B4_sans_tokens_topo", "B4_sans_attention_topo", "B4_sans_robustesse"]
+
+# Corruptions controlees appliquees au jeu de test uniquement.
+corruptions:
+  image_gaussian_noise: [0.1, 0.2]
+  image_blur_radius: [2.0, 4.0]
+  image_random_mask: [0.25, 0.5]
+  text_token_deletion: [0.2, 0.4]
+  text_char_corruption: [0.1, 0.2]
+
+# Adaptateur de la Meta Model API. Inactif par defaut, aucune cle n'est stockee ici.
+meta_model_api:
+  enabled: false
+  base_url: "https://api.meta.ai/v1"
+  model: "muse-spark-1.3"
+  api_key_env: "MODEL_API_KEY"
+  max_completion_tokens: 256
+  max_retries: 4
+  timeout_seconds: 60
+
+# Sorties.
+outputs:
+  root: "outputs"

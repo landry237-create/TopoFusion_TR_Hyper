@@ -1,0 +1,18 @@
+# Versions réellement utilisées pour les résultats de ce dépôt (Python 3.12.7, Linux, CPU).
+# Pour un GPU ou Windows, installez d'abord torch et torchvision selon https://pytorch.org.
+torch==2.5.1
+torchvision==0.20.1
+transformers==5.17.0
+datasets==5.0.1
+huggingface_hub==1.32.0
+safetensors==0.8.0
+numpy==2.2.6
+scipy==1.18.0
+scikit-learn==1.7.1
+matplotlib==3.10.5
+Pillow==11.3.0
+PyYAML==6.0.2
+gudhi==3.11.0
+ripser==0.6.15
+psutil==5.9.0
+pytest==8.4.1
