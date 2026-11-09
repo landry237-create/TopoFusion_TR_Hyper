@@ -63,3 +63,20 @@ Chaque défaut de `docs/RAPPORT_AUDIT.md` est relié à sa correction et, lorsqu
 | L4 | Inverse exact de softplus |
 | L5 | Device réel journalisé au démarrage de chaque expérience |
 | L6 | Référence `docs/archi.png` corrigée dans le README |
+
+## Défauts découverts après l'audit initial
+
+Ces défauts sont apparus en exécutant le pipeline réécrit, et non en lisant le code d'origine. Aucun n'a été détecté à partir des métriques de test.
+
+| Défaut observé | Cause | Correction | Vérification |
+|---|---|---|---|
+| B3 dégradé en début d'entraînement : R@5 de validation à 8,8 % à l'époque 1 | La voie structurelle ajoutait un même vecteur à tous les embeddings | Dernière couche de la tête structurelle initialisée à zéro et sans biais, descripteurs standardisés par vue | `test_embedding_depend_de_la_voie_topologique` et `test_tous_les_modules_recoivent_un_gradient`, après une vraie étape d'optimisation. L'absence de dégradation initiale a été contrôlée sur la validation |
+| Norme totale du gradient à 525, contre 6 attendu | Division par la plage du paysage et BatchNorm sur une variance presque nulle | Division retirée, plancher de variance `eps=2,5e-3` ; gradient mesuré à 6,4 ensuite, `L_sem` identique à B2 | `test_amplification_du_gradient_bornee_par_l_encodeur` |
+| Paysage aveugle aux barres H1 courtes | Grille fixe trop large pour la persistance réelle des nuages latents | Grille adaptée à chaque échantillon | `test_grille_adaptative_voit_une_barre_courte`, `test_grille_adaptative_independante_du_lot` |
+| GUDHI ne renvoie aucune paire pour un point unique | Cas limite de `flag_persistence_generators` | Retour explicite si le nuage compte au plus un point | `test_paires_de_petits_nuages` |
+| Perte de robustesse trop coûteuse à l'entraînement | Calcul de la vue perturbée sur le lot entier | Sous-lot de `robust_points` points, sans changer la nature de la perte | `test_robustesse_sur_sous_lot_transmet_le_gradient`, coûts dans `docs/RESULTATS.md` |
+| Mesure du coût topologique sur un nuage aléatoire | Reliquat de prototypage | Mesure sur de vrais tokens | Relecture de `measure_costs` |
+| Réutilisation possible de résultats obsolètes | Présence d'un fichier de résultat jugée suffisante | Contrôle de `empreinte_config` avant réutilisation | `test_resultats_reutilises_seulement_avec_la_meme_configuration` |
+| Reprise après interruption non vérifiée de bout en bout | État complet sauvegardé, mais continuité jamais comparée à une exécution ininterrompue | Aucune correction de code nécessaire : la continuité est désormais testée | `test_reprise_identique_a_une_execution_continue` |
+| Durée d'entraînement fausse après une reprise ou une pause de la machine | La durée de `fit` ne couvrait que le segment suivant la reprise, et une époque suspendue gonflait la somme | Durée calculée depuis l'historique complet : durée médiane d'une époque multipliée par le nombre d'époques, avec le compte des époques écartées | Relecture de `docs/RESULTATS.md`, 7 époques écartées |
+| `resource` absent sous Windows | Module réservé à Unix | Repli par `psutil` | Non exécuté sous Windows |
